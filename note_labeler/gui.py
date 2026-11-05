@@ -25,7 +25,8 @@ from .render import LabelOptions
 COLOR_CHOICES = {"Black": "black", "Blue": "blue", "Red": "red", "Green": "green",
                  "Rainbow (a colour per letter)": "rainbow"}
 SIZE_CHOICES = {"Small": 0.8, "Medium": 1.0, "Large": 1.25, "Extra large": 1.5}
-HEIGHT_CHOICES = {"Close": 0.8, "Normal": 1.5, "High": 2.5}  # staff spaces
+HEIGHT_CHOICES = {"Close": 0.8, "Normal": 1.5, "Far": 2.5}  # staff spaces
+SIDE_CHOICES = {"Above": "above", "Below": "below"}
 
 
 def _settings_path() -> Path:
@@ -123,11 +124,22 @@ class App:
                      width=11).pack(side="left", padx=6)
         row2 = ttk.Frame(opts)
         row2.pack(fill="x", pady=(6, 2))
-        ttk.Label(row2, text="Distance above the staff:").pack(side="left")
-        self.height = tk.StringVar(value=self.settings.get("height", "Normal"))
-        ttk.Combobox(row2, textvariable=self.height, values=list(HEIGHT_CHOICES), state="readonly",
+        ttk.Label(row2, text="Top staff labels:").pack(side="left")
+        self.top_side = tk.StringVar(value=self.settings.get("top_staff", "Above"))
+        ttk.Combobox(row2, textvariable=self.top_side, values=list(SIDE_CHOICES), state="readonly",
+                     width=8).pack(side="left", padx=(6, 18))
+        ttk.Label(row2, text="Bottom staff labels:").pack(side="left")
+        self.bottom_side = tk.StringVar(value=self.settings.get("bottom_staff", "Below"))
+        ttk.Combobox(row2, textvariable=self.bottom_side, values=list(SIDE_CHOICES), state="readonly",
+                     width=8).pack(side="left", padx=6)
+        row3 = ttk.Frame(opts)
+        row3.pack(fill="x", pady=(6, 2))
+        ttk.Label(row3, text="Distance from the staff:").pack(side="left")
+        height = self.settings.get("height", "Normal")
+        self.height = tk.StringVar(value="Far" if height == "High" else height)  # older name
+        ttk.Combobox(row3, textvariable=self.height, values=list(HEIGHT_CHOICES), state="readonly",
                      width=11).pack(side="left", padx=6)
-        ttk.Label(row2, text="(labels never sit on the staff lines)", foreground="#666").pack(side="left")
+        ttk.Label(row3, text="(labels never sit on the staff lines)", foreground="#666").pack(side="left")
 
         self.keys = tk.BooleanVar(value=self.settings.get("keys", True))
         self.octaves = tk.BooleanVar(value=self.settings.get("octaves", False))
@@ -263,7 +275,9 @@ class App:
                             size=SIZE_CHOICES.get(self.size.get(), 1.0),
                             height=HEIGHT_CHOICES.get(self.height.get(), 1.5),
                             octave_numbers=self.octaves.get(), label_keys=self.keys.get(),
-                            label_tied=self.tied.get())
+                            label_tied=self.tied.get(),
+                            top_staff=SIDE_CHOICES.get(self.top_side.get(), "above"),
+                            bottom_staff=SIDE_CHOICES.get(self.bottom_side.get(), "below"))
 
     def _start(self) -> None:
         if not self.files:
@@ -271,6 +285,7 @@ class App:
             if not self.files:
                 return
         self.settings.update(color=self.color.get(), size=self.size.get(), height=self.height.get(),
+                             top_staff=self.top_side.get(), bottom_staff=self.bottom_side.get(),
                              keys=self.keys.get(),
                              octaves=self.octaves.get(), tied=self.tied.get(), musicxml=self.mxl.get())
         _save_settings(self.settings)

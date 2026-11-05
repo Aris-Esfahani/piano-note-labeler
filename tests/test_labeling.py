@@ -171,6 +171,48 @@ class RenderTests(unittest.TestCase):
         self.assertIn("F#5", text)
         self.assertIn("D5", text)
 
+    # --- Which side of each staff the labels go on -----------------------------
+    def _zones(self):
+        """For each piano system: the gap between the two hands, and the
+        strips just above the top staff / just below the bottom staff."""
+        staves = sorted(self.sheet.staves.values(), key=lambda s: s.top_at(s.left))
+        zones = []
+        for top, bottom in zip(staves, staves[1:]):
+            if top.role == "top" and bottom.role == "bottom":
+                y = lambda v: v * self.sy
+                zones.append({
+                    "between": (y(top.bottom_at(top.left)), y(bottom.top_at(bottom.left))),
+                    "above_top": (y(top.top_at(top.left)) - 6 * self.space, y(top.top_at(top.left))),
+                    "below_bottom": (y(bottom.bottom_at(bottom.left)), y(bottom.bottom_at(bottom.left)) + 6 * self.space),
+                })
+        return zones
+
+    def _count(self, labels, zone_name):
+        def inside(r, lo_hi):
+            c = (r.y0 + r.y1) / 2
+            return lo_hi[0] < c < lo_hi[1]
+        return sum(1 for _, r in labels for z in self._zones() if inside(r, z[zone_name]))
+
+    def test_staff_roles(self):
+        roles = {sid: s.role for sid, s in self.sheet.staves.items()}
+        self.assertEqual(roles[1], "top")
+        self.assertEqual(roles[2], "bottom")
+        self.assertEqual(sum(r == "bottom" for r in roles.values()), 6)   # 6 piano systems
+
+    def test_default_top_above_bottom_below(self):
+        self.assertEqual(self._count(self.note_labels, "between"), 0)   # nothing between the hands
+        self.assertGreater(self._count(self.note_labels, "above_top"), 80)
+        self.assertGreater(self._count(self.note_labels, "below_bottom"), 50)
+
+    def test_swapped_sides_go_between_the_hands(self):
+        out = Path(self.tmp.name) / "swapped.pdf"
+        write_labeled_pdf(PDF, [self.sheet], out, LabelOptions(label_keys=False, top_staff="below",
+                                                               bottom_staff="above"))
+        with pymupdf.open(out) as doc:
+            labels = labels_on(doc[0])
+        self.assertEqual(len(labels), len(self.note_labels))
+        self.assertGreater(self._count(labels, "between"), 0.9 * len(labels))
+
 
 class PipelineTests(unittest.TestCase):
     def test_cli_with_omr_input(self):

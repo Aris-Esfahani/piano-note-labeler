@@ -4,7 +4,7 @@
 # see the LICENSE file. Uses Audiveris (https://github.com/Audiveris/audiveris).
 """Piano Note Labeler: writes the letter name above every note of a score."""
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"
 APP_NAME = "Piano Note Labeler"
 COPYRIGHT = "Copyright (C) 2026 Aris Esfahani"
 LICENSE_NAME = "GNU Affero General Public License v3.0 or later"

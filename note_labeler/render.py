@@ -4,7 +4,8 @@
 # see the LICENSE file. Uses Audiveris (https://github.com/Audiveris/audiveris).
 """Write the note names onto the original PDF pages (PyMuPDF).
 
-Every note label goes ABOVE its staff, on blank paper: the page is rendered
+Every note label goes in a row beside its staff - above it or below it, as
+chosen for the top and bottom staff - on blank paper: the page is rendered
 once as a small picture, and each label is moved until nothing printed (staff
 lines, stems, beams, slurs, fingering numbers, text...) is under or next to it.
 Key-signature names sit right on top of their own sharp or flat.
@@ -36,6 +37,7 @@ COLORS = {
 }
 WHITE = (1, 1, 1)
 FONT = "hebo"  # Helvetica Bold, built into every PDF reader
+SIDES = ("above", "below")
 
 
 @dataclass
@@ -46,6 +48,8 @@ class LabelOptions:
     label_keys: bool = True       # name the sharps/flats of the key signature
     label_tied: bool = False      # also label the held half of a tie
     height: float = 1.5           # gap between staff and labels, in staff spaces
+    top_staff: str = "above"      # where the top staff's labels go (piano: right hand)
+    bottom_staff: str = "below"   # where the bottom staff's labels go (piano: left hand)
 
 
 def _color(name: str, scheme: str) -> tuple[float, float, float]:
@@ -115,10 +119,33 @@ class _Block:
         return replace(self, x=self.x + dx) if dx else self
 
 
+@dataclass
+class _Lane:
+    """Which side of its staff a label goes on, and how far it may travel.
+
+    Above the staff, labels move UP when something is in the way and must stay
+    below `limit` (the staff above). Below the staff, they move DOWN and must
+    stay above `limit` (the staff below)."""
+    direction: int   # -1 = above the staff, +1 = below it
+    limit: float     # page height (points) the label may not cross
+
+    def allows(self, rect: pymupdf.Rect) -> bool:
+        return rect.y0 >= self.limit if self.direction < 0 else rect.y1 <= self.limit
+
+    def baseline_for(self, block: _Block, edge: float) -> float:
+        """Baseline that puts the label's near side at height `edge`: its
+        bottom when above the staff, its top when below."""
+        return edge if self.direction < 0 else edge - block.rect(0).y0
+
+    def further(self, a: float, b: float) -> float:
+        """Of two baselines, the one further from the staff."""
+        return min(a, b) if self.direction < 0 else max(a, b)
+
+
 # A spot is (baseline, block). Candidates are tried cheapest first: moving a
-# label up costs 1 per staff space, sliding it sideways costs 2 per space, so
-# a label slides a little past its own stem before it climbs far.
-_LIFT_STEPS = 30          # up to 6 staff spaces higher, in 0.2-space steps
+# label away from the staff costs 1 per staff space, sliding it sideways costs
+# 2 per space, so a label slides a little past its own stem before it moves far.
+_LIFT_STEPS = 30          # up to 6 staff spaces further out, in 0.2-space steps
 _NEAR_LIFT = 10           # "close to its note": within 2 staff spaces
 _SHIFT_STEPS = 4          # up to 0.8 staff space sideways (1.6 when squeezed)
 
@@ -140,6 +167,7 @@ class _Placer:
 
     def __init__(self, page: pymupdf.Page, space: float):
         self.page = page
+        self.page_height = page.rect.height
         self.ink = _InkMap(page)
         self.space = space
         self.step = 0.2 * space
@@ -153,53 +181,56 @@ class _Placer:
     def overlaps_label(self, rect: pymupdf.Rect) -> bool:
         return any(rect.intersects(t) for t in self.taken)
 
+    def on_page(self, rect: pymupdf.Rect) -> bool:
+        return rect.y0 >= 0 and rect.y1 <= self.page_height
+
     def free(self, rect: pymupdf.Rect, check_labels: bool = True,
              skip_lines: tuple[float, ...] = (), tight: bool = False) -> bool:
-        if rect.y0 < 0:
+        if not self.on_page(rect):
             return False
         if check_labels and self.overlaps_label(rect):
             return False
         m = 0.0 if tight else self.margin
         return self.ink.ink(rect + (-m, -m, m, m), skip_lines, 0.12 * self.space) <= self.INK_TOLERANCE
 
-    def _spots(self, block: _Block, start: float, roof: float, max_lift: int = _LIFT_STEPS,
+    def _spots(self, block: _Block, start: float, lane: _Lane, max_lift: int = _LIFT_STEPS,
                wide: bool = False):
         for _, lift, shift in _CANDIDATES[wide]:
             if lift > max_lift:
                 continue
-            baseline = start - lift * self.step
+            baseline = start + lane.direction * lift * self.step
             moved = block.shifted(shift * self.step)
             rect = moved.rect(baseline)
-            if rect.y0 >= roof:
+            if lane.allows(rect):
                 yield baseline, moved, rect
 
-    def search(self, block: _Block, start: float, roof: float, check_labels: bool = True,
+    def search(self, block: _Block, start: float, lane: _Lane, check_labels: bool = True,
                max_lift: int = _LIFT_STEPS, wide: bool = False,
                skip_lines: tuple[float, ...] = (), tight: bool = False) -> tuple[float, _Block] | None:
-        """Nearest spot at or above `start` on blank paper, the top of the label
-        staying below `roof`. `wide` lets it slide further sideways; `tight`
+        """Nearest spot from `start` outward (away from the staff) on blank
+        paper, within the lane. `wide` lets it slide further sideways; `tight`
         drops the blank border."""
-        for baseline, moved, rect in self._spots(block, start, roof, max_lift, wide):
+        for baseline, moved, rect in self._spots(block, start, lane, max_lift, wide):
             if self.free(rect, check_labels, skip_lines, tight):
                 return baseline, moved
         return None
 
-    def nearest(self, block: _Block, start: float, roof: float, check_labels: bool = True,
+    def nearest(self, block: _Block, start: float, lane: _Lane, check_labels: bool = True,
                 max_lift: int = _LIFT_STEPS, wide: bool = False) -> tuple[float, _Block] | None:
         """Comfortable spot close by, else a tight one close by, else whatever
-        is free further up. Keeps labels near their notes."""
+        is free further out. Keeps labels near their notes."""
         near = min(_NEAR_LIFT, max_lift)
-        return (self.search(block, start, roof, check_labels, near, wide)
-                or self.search(block, start, roof, check_labels, near, wide, tight=True)
-                or self.search(block, start, roof, check_labels, max_lift, wide)
-                or self.search(block, start, roof, check_labels, max_lift, wide, tight=True))
+        return (self.search(block, start, lane, check_labels, near, wide)
+                or self.search(block, start, lane, check_labels, near, wide, tight=True)
+                or self.search(block, start, lane, check_labels, max_lift, wide)
+                or self.search(block, start, lane, check_labels, max_lift, wide, tight=True))
 
-    def least_ink(self, block: _Block, start: float, roof: float) -> tuple[int, float, _Block]:
+    def least_ink(self, block: _Block, start: float, lane: _Lane) -> tuple[int, float, _Block]:
         """No blank paper anywhere nearby: the spot covering the least printing
         (never another label)."""
         best = None
-        for baseline, moved, rect in self._spots(block, start, roof, wide=True):
-            if rect.y0 < 0 or self.overlaps_label(rect):
+        for baseline, moved, rect in self._spots(block, start, lane, wide=True):
+            if not self.on_page(rect) or self.overlaps_label(rect):
                 continue
             ink = self.ink.ink(rect)
             if best is None or ink < best[0]:
@@ -231,21 +262,58 @@ class _Geometry:
         self.sx = page.rect.width / sheet.width
         self.sy = page.rect.height / sheet.height
         self.space = sheet.interline * self.sy            # one staff space, in points
+        self.page_height = page.rect.height
 
     def staff_top(self, staff_id: int, x_px: float, fallback_px: float) -> float:
         staff = self.sheet.staves.get(staff_id)
         return (staff.top_at(x_px) if staff else fallback_px) * self.sy
 
-    def roof(self, staff_id: int, x_px: float) -> float:
-        """Labels must stay below this line: never on (or touching) the staff above."""
+    def staff_bottom(self, staff_id: int, x_px: float, fallback_px: float) -> float:
+        staff = self.sheet.staves.get(staff_id)
+        return (staff.bottom_at(x_px) if staff else fallback_px) * self.sy
+
+    def _neighbours(self, staff_id: int, x_px: float):
+        return [s for s in self.sheet.staves.values()
+                if s.id != staff_id and s.left - 50 <= x_px <= s.right + 50]
+
+    def roof(self, staff_id: int, x_px: float, opts: LabelOptions | None = None) -> float:
+        """Labels above a staff stay below this line: never on the staff above.
+        If the staff above puts its own labels below it (into the same gap),
+        each staff gets its half of the gap, so every label stays visibly
+        closer to its own staff."""
         staff = self.sheet.staves.get(staff_id)
         if staff is None:
             return 0.0
         top = staff.top_at(x_px)
-        above = [s.bottom_at(x_px) for s in self.sheet.staves.values()
-                 if s.id != staff_id and s.left - 50 <= x_px <= s.right + 50
-                 and s.bottom_at(x_px) < top]
-        return max(above) * self.sy + 0.5 * self.space if above else 0.0
+        above = [s for s in self._neighbours(staff_id, x_px) if s.bottom_at(x_px) < top]
+        if not above:
+            return 0.0
+        other = max(above, key=lambda s: s.bottom_at(x_px))
+        gap_start, gap_end = other.bottom_at(x_px) * self.sy, top * self.sy
+        if opts is not None and self.side_of(other.id, opts) == "below":
+            return (gap_start + gap_end) / 2 + 0.25 * self.space
+        return gap_start + 0.5 * self.space
+
+    def floor(self, staff_id: int, x_px: float, opts: LabelOptions | None = None) -> float:
+        """Labels below a staff stay above this line: never on the staff below,
+        and only in their half of the gap if that staff's labels go above it."""
+        staff = self.sheet.staves.get(staff_id)
+        if staff is None:
+            return self.page_height
+        bottom = staff.bottom_at(x_px)
+        below = [s for s in self._neighbours(staff_id, x_px) if s.top_at(x_px) > bottom]
+        if not below:
+            return self.page_height
+        other = min(below, key=lambda s: s.top_at(x_px))
+        gap_start, gap_end = bottom * self.sy, other.top_at(x_px) * self.sy
+        if opts is not None and self.side_of(other.id, opts) == "above":
+            return (gap_start + gap_end) / 2 - 0.25 * self.space
+        return gap_end - 0.5 * self.space
+
+    def side_of(self, staff_id: int, opts: LabelOptions) -> str:
+        staff = self.sheet.staves.get(staff_id)
+        side = opts.bottom_staff if staff is not None and staff.role == "bottom" else opts.top_staff
+        return side if side in SIDES else "above"
 
 
 def _group_columns(notes: list[NoteMark]) -> list[list[NoteMark]]:
@@ -265,40 +333,49 @@ def _group_columns(notes: list[NoteMark]) -> list[list[NoteMark]]:
     return groups
 
 
-def _find_spot(placer: _Placer, plain: _Block, start: float, floor: float,
-               roof: float) -> tuple[_Block, float]:
-    """Pick the label's shape (stack, squeezed stack, one line) and height."""
+def _find_spot(placer: _Placer, plain: _Block, start_y: float, closest_y: float,
+               lane: _Lane) -> tuple[_Block, float, bool]:
+    """Pick the label's shape (stack, squeezed stack, one line) and position.
+    `start_y` is where its near side normally goes; `closest_y` is as close to
+    the staff (or the outermost note) as it may come in a tight spot. The flag
+    says whether any shape fitted inside the lane at all."""
     variants = plain.variants()
-    # 1. Close to the note (at most 2 spaces above the normal height): blank
+
+    def start(block: _Block) -> float:
+        return lane.baseline_for(block, start_y)
+
+    # 1. Close to the note (at most 2 spaces further out than normal): blank
     #    paper with a comfortable border first, then a tight fit.
     for tight in (False, True):
         for block in variants:
-            found = placer.search(block, start, roof, check_labels=False,
+            found = placer.search(block, start(block), lane, check_labels=False,
                                   max_lift=_NEAR_LIFT, tight=tight)
             if found is not None:
-                return block, found[0]
-    # 2. Tight spot (e.g. right under the staff above): come a bit closer.
-    baseline = start + placer.step
-    while baseline <= floor:
-        for block in variants:
-            if placer.search(block, baseline, roof, check_labels=False, max_lift=0, tight=True):
-                return block, baseline
-        baseline += placer.step
-    # 3. Slide further sideways (e.g. past a rest sitting right above the note).
+                return block, found[0], True
+    # 2. Tight spot (e.g. right next to the neighbouring staff): come a bit closer.
+    toward = -lane.direction
     for block in variants:
-        found = placer.search(block, start, roof, check_labels=False, wide=True, tight=True)
+        closest = lane.baseline_for(block, closest_y)
+        baseline = start(block) + toward * placer.step
+        while (closest - baseline) * toward >= 0:
+            if placer.search(block, baseline, lane, check_labels=False, max_lift=0, tight=True):
+                return block, baseline, True
+            baseline += toward * placer.step
+    # 3. Slide further sideways (e.g. past a rest sitting right next to the note).
+    for block in variants:
+        found = placer.search(block, start(block), lane, check_labels=False, wide=True, tight=True)
         if found is not None:
-            return block, found[0]
-    # 4. Further up.
+            return block, found[0], True
+    # 4. Further out.
     for tight in (False, True):
         for block in variants:
-            found = placer.search(block, start, roof, check_labels=False, tight=tight)
+            found = placer.search(block, start(block), lane, check_labels=False, tight=tight)
             if found is not None:
-                return block, found[0]
+                return block, found[0], True
     # 5. No blank paper at all: cover as little printing as possible.
-    fits = [(placer.least_ink(v, floor, roof), v) for v in variants]
-    (_, baseline, _), block = min(fits, key=lambda f: f[0][0])
-    return block, baseline
+    fits = [(placer.least_ink(v, lane.baseline_for(v, closest_y), lane), v) for v in variants]
+    (ink, baseline, _), block = min(fits, key=lambda f: f[0][0])
+    return block, baseline, ink < 10 ** 9
 
 
 def label_page(page: pymupdf.Page, sheet: SheetMarks, opts: LabelOptions) -> int:
@@ -308,7 +385,7 @@ def label_page(page: pymupdf.Page, sheet: SheetMarks, opts: LabelOptions) -> int
     geo = _Geometry(page, sheet)
     space = geo.space
     base_size = max(5.0, 1.3 * space * opts.size)
-    clearance = max(0.3, opts.height) * space     # blank gap under the labels
+    clearance = max(0.3, opts.height) * space     # blank gap between staff and labels
     placer = _Placer(page, space)
 
     if opts.label_keys:
@@ -322,30 +399,45 @@ def label_page(page: pymupdf.Page, sheet: SheetMarks, opts: LabelOptions) -> int
                  for n in reversed(column)]                     # lowest note first
         x_px = sum(n.box.cx for n in column) / len(column)
         staff = column[0].staff
-        staff_top = geo.staff_top(staff, x_px, column[0].box.y)
-        head_top = column[0].box.y * geo.sy
-        row = staff_top - clearance
-        start = min(row, head_top - 0.6 * space)        # clear of notes above the staff too
-        floor = min(staff_top, head_top) - 0.35 * space  # closest a label may come
-        roof = geo.roof(staff, x_px)
-        block, need = _find_spot(placer, _Block(lines, x_px * geo.sx), start, floor, roof)
-        plans.append((column, block, row, start, roof, need))
+        if geo.side_of(staff, opts) == "above":
+            lanes = [_Lane(-1, geo.roof(staff, x_px, opts)), _Lane(-1, geo.roof(staff, x_px))]
+            edge = geo.staff_top(staff, x_px, column[0].box.y)
+            outer_note = column[0].box.y * geo.sy                # top of the highest head
+            start_y = min(edge - clearance, outer_note - 0.6 * space)
+            closest_y = min(edge, outer_note) - 0.35 * space
+        else:
+            lanes = [_Lane(+1, geo.floor(staff, x_px, opts)), _Lane(+1, geo.floor(staff, x_px))]
+            edge = geo.staff_bottom(staff, x_px, column[-1].box.bottom)
+            outer_note = column[-1].box.bottom * geo.sy          # bottom of the lowest head
+            start_y = max(edge + clearance, outer_note + 0.6 * space)
+            closest_y = max(edge, outer_note) + 0.35 * space
+        # Own half of a shared gap first; if the label can't fit there at all
+        # (a narrow gap), let it use the whole gap rather than spill onto a staff.
+        for lane in lanes:
+            block, need, fitted = _find_spot(placer, _Block(lines, x_px * geo.sx), start_y, closest_y, lane)
+            if fitted:
+                break
+        plans.append((column, block, lane, need))
 
     # Labels in the same bar line up, so they read like a line of text: each
-    # label rises to the highest neighbour in its bar, but by no more than
-    # 1.5 staff spaces (one tall ornament shouldn't lift the whole bar).
+    # label moves out to its furthest neighbour in the bar, but by no more
+    # than 1.5 staff spaces (one tall ornament shouldn't move the whole bar).
     by_bar: dict[tuple[int, str], list[float]] = {}
-    for column, block, row, start, roof, need in plans:
+    for column, block, lane, need in plans:
         by_bar.setdefault((column[0].staff, column[0].measure), []).append(need)
 
-    for column, block, row, start, roof, need in plans:
+    for column, block, lane, need in plans:
         bar = by_bar[(column[0].staff, column[0].measure)]
-        target = min(n for n in bar if n >= need - 1.5 * space)
-        spot = (placer.search(block, target, roof, max_lift=0)                # lined up
-                or placer.search(block, target, roof, max_lift=0, tight=True)
-                or placer.nearest(block, need, roof)                          # its own height
-                or placer.search(block, need, roof, wide=True, tight=True)
-                or placer.least_ink(block, need, roof)[1:])
+        reach = 1.5 * space
+        target = need
+        for other in bar:
+            if abs(other - need) <= reach:
+                target = lane.further(target, other)
+        spot = (placer.search(block, target, lane, max_lift=0)                # lined up
+                or placer.search(block, target, lane, max_lift=0, tight=True)
+                or placer.nearest(block, need, lane)                          # its own place
+                or placer.search(block, need, lane, wide=True, tight=True)
+                or placer.least_ink(block, need, lane)[1:])
         baseline, block = spot
         placer.draw(block, baseline, opts.color)
     return len(notes)
@@ -366,9 +458,9 @@ def _label_key_signatures(placer: _Placer, geo: _Geometry, opts: LabelOptions,
         sign_top = key.box.y * geo.sy
         # Baseline that leaves the label (plus its blank border) just clear of the sign.
         start = sign_top - block.rect(0).y1 - placer.margin - 0.3
-        roof = geo.roof(key.staff, key.box.cx)
-        found = (placer.search(block, start, roof, max_lift=_NEAR_LIFT, skip_lines=lines)
-                 or placer.search(block, start, roof, max_lift=_NEAR_LIFT, skip_lines=lines, tight=True))
+        lane = _Lane(-1, geo.roof(key.staff, key.box.cx))
+        found = (placer.search(block, start, lane, max_lift=_NEAR_LIFT, skip_lines=lines)
+                 or placer.search(block, start, lane, max_lift=_NEAR_LIFT, skip_lines=lines, tight=True))
         baseline, block = found if found is not None else (start, block)
         placer.draw(block, baseline, opts.color, outline=True)
 

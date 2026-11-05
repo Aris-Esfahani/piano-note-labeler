@@ -79,6 +79,7 @@ class Staff:
     right: float
     top_line: list[tuple[float, float]]     # (x, y) points of the top line
     bottom_line: list[tuple[float, float]]  # (x, y) points of the bottom line
+    role: str = "top"                       # "top" or "bottom" staff of its part (piano: RH / LH)
 
     def top_at(self, x: float) -> float:
         return _interpolate(self.top_line, x)
@@ -169,7 +170,10 @@ class _SystemReader:
         staff_part: dict[int, int] = {}
         five_line: set[int] = set()
         for p_idx, part in enumerate(self.system.findall("part")):
-            for st in part.findall("staff"):
+            part_staves = part.findall("staff")
+            for s_idx, st in enumerate(part_staves):
+                # In a piano part the last staff is the bottom (left-hand) one.
+                role = "bottom" if len(part_staves) > 1 and s_idx == len(part_staves) - 1 else "top"
                 sid = int(st.get("id"))
                 staff_order[sid] = len(staff_order)
                 staff_part[sid] = p_idx
@@ -181,7 +185,7 @@ class _SystemReader:
                        for ln in line_els]
                 if pts:
                     sheet.staves[sid] = Staff(sid, float(st.get("left", 0)), float(st.get("right", 0)),
-                                              pts[0], pts[-1])
+                                              pts[0], pts[-1], role)
 
         # --- Clefs per staff (sorted by x) ---------------------------------
         clefs: dict[int, list[tuple[float, Clef]]] = {}

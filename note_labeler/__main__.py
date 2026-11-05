@@ -26,7 +26,7 @@ def main(argv: list[str] | None = None) -> int:
 
     from .audiveris import AudiverisError, Cancelled
     from .pipeline import NoNotesFound, label_file
-    from .render import COLORS, LabelOptions
+    from .render import COLORS, SIDES, LabelOptions
 
     ap = argparse.ArgumentParser(prog="note-labeler", formatter_class=argparse.RawTextHelpFormatter,
                                  description=f"{APP_NAME}: write the letter "
@@ -38,6 +38,10 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--size", type=float, default=1.0, help="label size, e.g. 0.8 or 1.3 (default 1.0)")
     ap.add_argument("--height", type=float, default=1.5,
                     help="gap between the staff and the labels, in staff spaces (default 1.5)")
+    ap.add_argument("--top-staff", choices=SIDES, default="above",
+                    help="labels for the top staff (piano: right hand) go above or below it (default above)")
+    ap.add_argument("--bottom-staff", choices=SIDES, default="below",
+                    help="labels for the bottom staff (piano: left hand) go above or below it (default below)")
     ap.add_argument("--octaves", action="store_true", help="add octave numbers (C4 = middle C)")
     ap.add_argument("--no-key", action="store_true", help="don't name the key-signature sharps/flats")
     ap.add_argument("--label-tied", action="store_true", help="also label the held half of tied notes")
@@ -54,7 +58,8 @@ def main(argv: list[str] | None = None) -> int:
     args = ap.parse_args(argv)
 
     opts = LabelOptions(color=args.color, size=args.size, height=args.height, octave_numbers=args.octaves,
-                        label_keys=not args.no_key, label_tied=args.label_tied)
+                        label_keys=not args.no_key, label_tied=args.label_tied,
+                        top_staff=args.top_staff, bottom_staff=args.bottom_staff)
     failures = 0
     for src in args.files:
         out = None

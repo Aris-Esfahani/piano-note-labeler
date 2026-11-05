@@ -5,11 +5,12 @@ so beginners can read any piece. It also names the sharps and flats of the key
 signature (for example **F#** in G major).
 
 Give it a PDF or a scan of the music and you get back **the same page**, with the
-letters added in a neat row above each staff. Note labels never sit on the staff lines
-and never touch fingering numbers or other printing. Each key-signature name sits
-right on top of its own sharp or flat.
+letters added in a neat row beside each staff: by default **above the top staff**
+(right hand) and **below the bottom staff** (left hand). You can choose above or below
+for each. Note labels never sit on the staff lines and never touch fingering numbers or
+other printing. Each key-signature name sits right on top of its own sharp or flat.
 
-![Bach's Menuet in G with the note names written above each staff](docs/example.png)
+![Bach's Menuet in G with the note names above the right hand and below the left hand](docs/example.png)
 
 - Works on printed sheet music: digital PDFs, and scans or photos (PNG, JPG, TIFF).
 - Gets sharps and flats right: key signature, accidentals that last to the end of
@@ -69,7 +70,9 @@ Options:
 | --- | --- |
 | Label colour | Black (the default), blue, red, green, or **Rainbow**: each letter gets its own colour (C red, D orange, E yellow, F green, G blue, A indigo, B violet). |
 | Size | How big the letters are. |
-| Distance above the staff | How far above the staff the row of letters sits. |
+| Top staff labels | **Above** (default) or **Below** the top staff (piano: right hand). |
+| Bottom staff labels | **Below** (default) or **Above** the bottom staff (piano: left hand). If both go between the hands, each staff's letters stay in their own half of the gap. |
+| Distance from the staff | How far from the staff the row of letters sits: Close, Normal or Far. |
 | Name the key signature | Writes F#, Bb… right on top of each sharp or flat of the key signature. |
 | Show octave numbers | `C4` instead of `C` (C4 is middle C). |
 | Also label held notes | Labels the second note of a tie too. Off by default, because you don't play it again. |
@@ -109,9 +112,10 @@ Run `python -m note_labeler --help` for every option. With no file names it open
    and the clef give the letter. The key signature, any accidental earlier in the bar,
    or a tie from the previous bar decide the sharp or flat.
 3. **`note_labeler/render.py`** writes the letters onto the original PDF with PyMuPDF.
-   It looks at the printed page and puts each label on blank paper above its staff,
-   clear of the staff lines, stems, beams, slurs, fingering numbers and text. Labels in a
-   bar line up. Key-signature names go right on top of their own sharp or flat.
+   It looks at the printed page and puts each label on blank paper above or below its
+   staff (as chosen for the top and bottom staff), clear of the staff lines, stems,
+   beams, slurs, fingering numbers and text. Labels in a bar line up. Key-signature names
+   go right on top of their own sharp or flat.
 
 | File | Purpose |
 | --- | --- |
