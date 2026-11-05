@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+*.pyc
+*.egg-info/
+build/
+dist/
+# Labelled copies people make while trying the app
+* (labeled).pdf
+* (labeled) *.pdf
+*.spec
+# Audiveris kept inside the project (156 MB, Windows-only): people download it
+# from the Audiveris site instead. Delete this line to include it in the repository.
+Audiveris/

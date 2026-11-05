@@ -1,0 +1,8 @@
+* text=auto
+# Windows scripts need Windows line endings, Mac/Linux scripts need Unix ones,
+# even in GitHub's "Download ZIP".
+*.bat text eol=crlf
+*.sh text eol=lf
+*.pdf binary
+*.png binary
+*.omr binary
