@@ -56,6 +56,8 @@ The first time, Windows may say "Windows protected your PC": click **More info**
 
 ## How to use it
 
+<img src="docs/app-window.png" alt="The Piano Note Labeler window, after labelling Bach's Menuet in G" width="420">
+
 1. Click **Choose sheet music…** and pick a PDF or an image. You can pick several files.
 2. Click **Label the notes**. Reading the music takes about 15–25 seconds per page.
 3. Click **Open labeled PDF**. The result is saved next to your file as
