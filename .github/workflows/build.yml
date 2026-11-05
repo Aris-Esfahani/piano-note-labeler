@@ -1,6 +1,8 @@
-# Runs the tests on every push. When you push a version tag (e.g. v1.0.0), it
-# also builds the Windows .exe and the macOS app and attaches them to a GitHub
-# Release, so people can download the app without installing Python.
+# Runs the tests on every push. When you push a version tag (e.g. v1.0.0) it
+# also builds the downloads and attaches them to a GitHub Release:
+#   PianoNoteLabeler-Windows.zip   app + Audiveris together, nothing to install
+#   PianoNoteLabeler-Windows.exe   the app on its own (Audiveris installed separately)
+#   PianoNoteLabeler-macOS.zip     the Mac app (Audiveris installed separately)
 name: Test and build
 
 on:
@@ -13,6 +15,9 @@ on:
 permissions:
   contents: write
 
+env:
+  AUDIVERIS_VERSION: "5.11.0"
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -24,39 +29,67 @@ jobs:
       - run: pip install -r requirements.txt
       - run: python -m unittest discover -s tests -v
 
-  build:
+  windows:
     needs: test
     if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
-    strategy:
-      matrix:
-        include:
-          - os: windows-latest
-            asset: PianoNoteLabeler-Windows.exe
-          - os: macos-latest
-            asset: PianoNoteLabeler-macOS.zip
-    runs-on: ${{ matrix.os }}
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
       - run: pip install -r requirements.txt pyinstaller
-      - name: Build (Windows)
-        if: runner.os == 'Windows'
+      - name: Build the app
+        run: pyinstaller --noconfirm --onefile --windowed --name PianoNoteLabeler launcher.py
+      - name: Get Audiveris (unpacked from its official Windows installer)
+        shell: pwsh
         run: |
-          pyinstaller --noconfirm --onefile --windowed --name PianoNoteLabeler launcher.py
-          Move-Item dist/PianoNoteLabeler.exe dist/${{ matrix.asset }}
-      - name: Build (macOS)
-        if: runner.os == 'macOS'
+          $v = $env:AUDIVERIS_VERSION
+          Invoke-WebRequest "https://github.com/Audiveris/audiveris/releases/download/$v/Audiveris-$v-windows-x86_64.msi" -OutFile audiveris.msi
+          $target = Join-Path $PWD "audiveris-msi"
+          Start-Process msiexec.exe -ArgumentList "/a", "audiveris.msi", "/qn", "TARGETDIR=$target" -Wait
+          $exe = Get-ChildItem $target -Recurse -Filter Audiveris.exe | Select-Object -First 1
+          if (-not $exe) { throw "Audiveris.exe not found in the installer" }
+          Copy-Item $exe.Directory.FullName Audiveris -Recurse
+      - name: Make the downloads
+        shell: pwsh
         run: |
-          pyinstaller --noconfirm --windowed --name "Piano Note Labeler" launcher.py
-          cd dist && ditto -c -k --keepParent "Piano Note Labeler.app" ${{ matrix.asset }}
+          python make_release_zip.py
+          Copy-Item dist/PianoNoteLabeler.exe dist/PianoNoteLabeler-Windows.exe
       - uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.asset }}
-          path: dist/${{ matrix.asset }}
+          name: windows
+          path: |
+            dist/PianoNoteLabeler-Windows.zip
+            dist/PianoNoteLabeler-Windows.exe
       - name: Attach to the GitHub Release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/${{ matrix.asset }}
+          files: |
+            dist/PianoNoteLabeler-Windows.zip
+            dist/PianoNoteLabeler-Windows.exe
+
+  macos:
+    needs: test
+    if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt pyinstaller
+      - name: Build the app
+        run: |
+          pyinstaller --noconfirm --windowed --name "Piano Note Labeler" launcher.py
+          cd dist && ditto -c -k --keepParent "Piano Note Labeler.app" PianoNoteLabeler-macOS.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos
+          path: dist/PianoNoteLabeler-macOS.zip
+      - name: Attach to the GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/PianoNoteLabeler-macOS.zip

@@ -17,22 +17,23 @@ right on top of its own sharp or flat.
 - Chords are labelled as a stack, top note on top.
 - Runs on your own computer. Nothing is uploaded.
 
-## Install (Windows)
+## Install (Windows): one download, nothing to install
 
-1. **Install Audiveris** (free). It's the program that reads the notes off the page.
-   Download the `.msi` file for Windows from the
-   [Audiveris releases page](https://github.com/Audiveris/audiveris/releases) and run it.
-2. **Download `PianoNoteLabeler-Windows.exe`** from this project's
-   [Releases](../../releases) page and double-click it. No other setup is needed.
+1. From this project's [Releases](../../releases) page, download
+   **`PianoNoteLabeler-Windows.zip`** (about 110 MB).
+2. Unzip it, open the `PianoNoteLabeler` folder, and double-click
+   **`PianoNoteLabeler.exe`**.
 
-The app finds Audiveris by itself. If it doesn't, click **Locate Audiveris…** and pick
-`C:\Program Files\Audiveris\Audiveris.exe`.
+That's it: no Python, no Java, no separate installs. The zip contains the app and
+[Audiveris](https://github.com/Audiveris/audiveris), the free program that reads the
+notes off the page. Keep the `Audiveris` folder next to `PianoNoteLabeler.exe`.
 
-**Keeping Audiveris inside this folder instead:** copy the whole Audiveris program
-folder (`Audiveris.exe` together with its `app` and `runtime` folders) into a folder
-named `Audiveris` here, next to `run_windows.bat` (or next to the downloaded `.exe`).
-The app uses that copy first. Moving `Audiveris.exe` on its own doesn't work: it needs
-the `app` and `runtime` folders beside it.
+The first time, Windows may say "Windows protected your PC": click **More info**, then
+**Run anyway**. (The app isn't signed with a paid certificate.)
+
+**Already have Audiveris installed?** Download just `PianoNoteLabeler-Windows.exe`
+(30 MB) instead. It finds Audiveris by itself; if it doesn't, click
+**Locate Audiveris…** and pick `C:\Program Files\Audiveris\Audiveris.exe`.
 
 ## Install (macOS / Linux), or run from the source code
 
@@ -125,10 +126,15 @@ The tests use a public-domain score (Bach, Menuet in G, from the
 from it, so they run without Audiveris. One extra test runs Audiveris itself if it's
 installed.
 
-To build the stand-alone Windows app yourself, run `build_exe.bat` (it creates
-`dist\PianoNoteLabeler.exe`). On GitHub, pushing a version tag such as `v1.0.0` builds
-the Windows and macOS apps and attaches them to a Release (see
-`.github/workflows/build.yml`).
+To build the Windows downloads yourself, run `build_exe.bat`. It creates
+`dist\PianoNoteLabeler.exe`, and, if this project has an `Audiveris` folder (the whole
+Audiveris program: `Audiveris.exe` with its `app` and `runtime` folders), also
+`dist\PianoNoteLabeler-Windows.zip` with both together (`make_release_zip.py`).
+The `Audiveris` folder isn't stored in Git.
+
+On GitHub, pushing a version tag such as `v1.0.0` builds the Windows zip (fetching
+Audiveris from its official installer), the Windows `.exe` and the macOS app, and
+attaches them to a Release (see `.github/workflows/build.yml`).
 
 ## Credits
 
@@ -136,3 +142,5 @@ the Windows and macOS apps and attaches them to a Release (see
 - [PyMuPDF](https://github.com/pymupdf/PyMuPDF): reading and writing PDFs (AGPL-3.0)
 - Sample score: J. S. Bach, Menuet in G, BWV Anh. 114, typeset by Allen Garvin for the
   Mutopia Project, public domain.
+
+See [licenses/THIRD-PARTY-NOTICES.md](licenses/THIRD-PARTY-NOTICES.md) for details.
