@@ -1,3 +1,7 @@
+# Piano Note Labeler - writes the letter name above every note of sheet music.
+# Copyright (C) 2026 Aris Esfahani
+# Free software under the GNU Affero General Public License v3.0 or later;
+# see the LICENSE file. Uses Audiveris (https://github.com/Audiveris/audiveris).
 """Run with no arguments for the window app, or give files for command-line use.
 
     python -m note_labeler                      # opens the app
@@ -10,7 +14,7 @@ import argparse
 import sys
 from pathlib import Path
 
-from . import APP_NAME, __version__
+from . import APP_NAME, AUDIVERIS_URL, COPYRIGHT, LICENSE_NAME, SOURCE_URL, __version__
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -24,7 +28,8 @@ def main(argv: list[str] | None = None) -> int:
     from .pipeline import NoNotesFound, label_file
     from .render import COLORS, LabelOptions
 
-    ap = argparse.ArgumentParser(prog="note-labeler", description=f"{APP_NAME}: write the letter "
+    ap = argparse.ArgumentParser(prog="note-labeler", formatter_class=argparse.RawTextHelpFormatter,
+                                 description=f"{APP_NAME}: write the letter "
                                  "name above every note of a piano score (PDF or image).")
     ap.add_argument("files", nargs="+", type=Path, help="PDF or image files (PNG/JPG/TIFF)")
     ap.add_argument("-o", "--out", type=Path, help="output folder (default: next to each input)")
@@ -39,7 +44,13 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--musicxml", action="store_true", help="also save the recognised music as MusicXML")
     ap.add_argument("--no-cache", action="store_true", help="re-read the music even if seen before")
     ap.add_argument("--audiveris", help="path to the Audiveris program, if not found automatically")
-    ap.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
+    ap.add_argument("--version", action="version", version="\n".join([
+        f"%(prog)s {__version__}",
+        COPYRIGHT,
+        f"Free software under the {LICENSE_NAME}; ABSOLUTELY NO WARRANTY.",
+        f"Source code: {SOURCE_URL}",
+        f"Notes are read by Audiveris ({AUDIVERIS_URL}),",
+        "free software by Hervé Bitteur and contributors."]))
     args = ap.parse_args(argv)
 
     opts = LabelOptions(color=args.color, size=args.size, height=args.height, octave_numbers=args.octaves,

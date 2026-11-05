@@ -1,3 +1,7 @@
+# Piano Note Labeler - writes the letter name above every note of sheet music.
+# Copyright (C) 2026 Aris Esfahani
+# Free software under the GNU Affero General Public License v3.0 or later;
+# see the LICENSE file. Uses Audiveris (https://github.com/Audiveris/audiveris).
 """The window app (Tkinter - comes with Python, nothing extra to install)."""
 from __future__ import annotations
 
@@ -13,7 +17,7 @@ from pathlib import Path
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 
-from . import APP_NAME, __version__
+from . import APP_NAME, AUDIVERIS_URL, COPYRIGHT, LICENSE_NAME, SOURCE_URL, __version__
 from .audiveris import DOWNLOAD_URL, AudiverisError, Cancelled, Job, find_audiveris
 from .pipeline import IMAGE_TYPES, NoNotesFound, label_file
 from .render import LabelOptions
@@ -125,7 +129,7 @@ class App:
                      width=11).pack(side="left", padx=6)
         ttk.Label(row2, text="(labels never sit on the staff lines)", foreground="#666").pack(side="left")
 
-        self.keys =tk.BooleanVar(value=self.settings.get("keys", True))
+        self.keys = tk.BooleanVar(value=self.settings.get("keys", True))
         self.octaves = tk.BooleanVar(value=self.settings.get("octaves", False))
         self.tied = tk.BooleanVar(value=self.settings.get("tied", False))
         self.mxl = tk.BooleanVar(value=self.settings.get("musicxml", False))
@@ -158,6 +162,14 @@ class App:
 
         reader = ttk.LabelFrame(frame, text="Note reader (Audiveris)", padding=8)
         reader.pack(fill="x", **pad)
+        credit = ttk.Frame(reader)
+        credit.pack(anchor="w", pady=(0, 4))
+        ttk.Label(credit, text="Audiveris reads the notes: free, open-source software by "
+                               "Hervé Bitteur and contributors.", foreground="#666").pack(anchor="w")
+        link = ttk.Label(credit, text="github.com/Audiveris/audiveris", foreground="#0b5cad",
+                         cursor="hand2")
+        link.pack(anchor="w")
+        link.bind("<Button-1>", lambda _e: webbrowser.open(AUDIVERIS_URL))
         self.reader_label = ttk.Label(reader, text="", wraplength=500, justify="left")
         self.reader_label.pack(anchor="w")
         btns = ttk.Frame(reader)
@@ -170,10 +182,43 @@ class App:
         self.check_btn = ttk.Button(btns, text="Check again", command=self._refresh_audiveris)
         self.check_btn.pack(side="left")
 
+        bottom = ttk.Frame(frame)
+        bottom.pack(fill="x", padx=14)
         self.show_log = tk.BooleanVar(value=False)
-        ttk.Checkbutton(frame, text="Show details", variable=self.show_log,
-                        command=self._toggle_log).pack(anchor="w", padx=14)
+        ttk.Checkbutton(bottom, text="Show details", variable=self.show_log,
+                        command=self._toggle_log).pack(side="left")
+        ttk.Button(bottom, text="About & licenses", command=self._about).pack(side="right")
         self.log = tk.Text(frame, height=10, width=80, font=("Consolas", 8), state="disabled")
+
+    def _about(self) -> None:
+        """Copyright, license, no-warranty notice and credits (the AGPL asks
+        programs with a window to show these)."""
+        win = tk.Toplevel(self.root)
+        win.title(f"About {APP_NAME}")
+        win.resizable(False, False)
+        win.transient(self.root)
+        body = ttk.Frame(win, padding=16)
+        body.pack(fill="both", expand=True)
+        ttk.Label(body, text=f"{APP_NAME} v{__version__}", font=("Segoe UI", 13, "bold")).pack(anchor="w")
+        ttk.Label(body, text=COPYRIGHT).pack(anchor="w", pady=(0, 8))
+        ttk.Label(body, wraplength=460, justify="left", text=(
+            "This program is free software: you can share and change it under the terms of the "
+            f"{LICENSE_NAME}. It comes with ABSOLUTELY NO WARRANTY. The full license text is in "
+            "the LICENSE file that comes with the program.")).pack(anchor="w", pady=(0, 10))
+        ttk.Label(body, text="Built on", font=("Segoe UI", 10, "bold")).pack(anchor="w")
+        ttk.Label(body, wraplength=460, justify="left", text=(
+            "• Audiveris: reads the notes off the page. Free, open-source optical music "
+            "recognition by Hervé Bitteur and contributors (GNU AGPL 3.0). This app couldn't "
+            "work without it.\n"
+            "• PyMuPDF / MuPDF by Artifex: reads and writes the PDFs (GNU AGPL 3.0).\n"
+            "• Python and Tkinter.")).pack(anchor="w", pady=(0, 12))
+        links = ttk.Frame(body)
+        links.pack(anchor="w")
+        ttk.Button(links, text="Audiveris website",
+                   command=lambda: webbrowser.open(AUDIVERIS_URL)).pack(side="left")
+        ttk.Button(links, text="Source code of this app",
+                   command=lambda: webbrowser.open(SOURCE_URL)).pack(side="left", padx=8)
+        ttk.Button(links, text="Close", command=win.destroy).pack(side="left")
 
     # --------------------------------------------------------------- actions
     def _refresh_audiveris(self) -> None:

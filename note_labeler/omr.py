@@ -1,3 +1,7 @@
+# Piano Note Labeler - writes the letter name above every note of sheet music.
+# Copyright (C) 2026 Aris Esfahani
+# Free software under the GNU Affero General Public License v3.0 or later;
+# see the LICENSE file. Uses Audiveris (https://github.com/Audiveris/audiveris).
 """Read an Audiveris project file (.omr) and work out every note's name.
 
 An .omr file is a zip. Inside, ``book.xml`` lists the sheets (one per PDF

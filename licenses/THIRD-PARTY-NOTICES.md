@@ -1,11 +1,18 @@
-# Third-party software
+# Licenses and credits
 
-Piano Note Labeler is built on these free programs. The full text of the GNU
-Affero General Public License 3.0 is in `AGPL-3.0.txt` in this folder.
+**Piano Note Labeler** is Copyright (C) 2026 Aris Esfahani, free software under
+the GNU Affero General Public License, version 3 or later, with no warranty.
+Source code: https://github.com/Aris-Esfahani/piano-note-labeler
+
+It is built on the free programs below. The full text of the GNU Affero General
+Public License 3.0, which covers this app, Audiveris and PyMuPDF, is in
+`AGPL-3.0.txt` in this folder (and in `LICENSE` in the source code).
 
 ## Audiveris (the note reader)
 
-- Optical music recognition by Hervé Bitteur and contributors.
+- Optical music recognition by Hervé Bitteur and contributors. Audiveris does
+  all of the reading of the sheet music; Piano Note Labeler adds the letter
+  names on top of what it finds.
 - License: GNU AGPL 3.0.
 - Source code: https://github.com/Audiveris/audiveris (version 5.11.0).
 - The Windows download includes Audiveris, unchanged, in the `Audiveris` folder.

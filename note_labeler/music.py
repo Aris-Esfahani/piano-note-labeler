@@ -1,3 +1,7 @@
+# Piano Note Labeler - writes the letter name above every note of sheet music.
+# Copyright (C) 2026 Aris Esfahani
+# Free software under the GNU Affero General Public License v3.0 or later;
+# see the LICENSE file. Uses Audiveris (https://github.com/Audiveris/audiveris).
 """Music theory helpers: clefs, key signatures and note spelling.
 
 Audiveris gives every note a *staff position* ("pitch"): 0 is the middle

@@ -1,3 +1,7 @@
+# Piano Note Labeler - writes the letter name above every note of sheet music.
+# Copyright (C) 2026 Aris Esfahani
+# Free software under the GNU Affero General Public License v3.0 or later;
+# see the LICENSE file. Uses Audiveris (https://github.com/Audiveris/audiveris).
 """Write the note names onto the original PDF pages (PyMuPDF).
 
 Every note label goes ABOVE its staff, on blank paper: the page is rendered

@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=68"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -7,8 +7,15 @@ name = "piano-note-labeler"
 version = "1.0.0"
 description = "Writes the letter name (C, D, F#, Bb...) above every note of piano sheet music."
 readme = "README.md"
+license = "AGPL-3.0-or-later"
+license-files = ["LICENSE", "licenses/*"]
+authors = [{ name = "Aris Esfahani" }]
 requires-python = ">=3.10"
 dependencies = ["pymupdf>=1.24"]
+
+[project.urls]
+Source = "https://github.com/Aris-Esfahani/piano-note-labeler"
+Audiveris = "https://github.com/Audiveris/audiveris"
 
 [project.scripts]
 note-labeler = "note_labeler.__main__:main"

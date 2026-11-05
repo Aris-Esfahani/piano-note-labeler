@@ -1,10 +1,15 @@
+# Piano Note Labeler - writes the letter name above every note of sheet music.
+# Copyright (C) 2026 Aris Esfahani
+# Free software under the GNU Affero General Public License v3.0 or later;
+# see the LICENSE file. Uses Audiveris (https://github.com/Audiveris/audiveris).
 """Make the all-in-one Windows download, PianoNoteLabeler-Windows.zip:
 
     PianoNoteLabeler/
         PianoNoteLabeler.exe   the app (build it first: build_exe.bat)
         Audiveris/             the note reader, ready to run - nothing to install
         READ ME.txt
-        licenses/
+        LICENSE.txt            this app's license (GNU AGPL 3.0)
+        licenses/              credits, and where each program's source code is
 
 People unzip it and double-click PianoNoteLabeler.exe. The app finds the
 Audiveris folder sitting next to it by itself.
@@ -48,10 +53,18 @@ TIPS
 - Scans: 300 DPI, straight, black on white. Handwritten music doesn't work.
 - If a letter looks wrong, trust the printed note: reading isn't perfect.
 
-LICENSES
-Audiveris and the PDF library (PyMuPDF) are free software under the GNU
-AGPL 3.0. See the licenses folder for details and where to get their
-source code.
+CREDITS
+The notes are read by Audiveris (https://github.com/Audiveris/audiveris),
+free, open-source optical music recognition by Herve Bitteur and
+contributors. It is included, unchanged, in the Audiveris folder.
+PDFs are handled by PyMuPDF / MuPDF by Artifex.
+
+LICENSE
+Piano Note Labeler: Copyright (C) 2026 Aris Esfahani. Free software under
+the GNU Affero General Public License, version 3 or later, with ABSOLUTELY
+NO WARRANTY. Source code: https://github.com/Aris-Esfahani/piano-note-labeler
+Audiveris and PyMuPDF are also under the GNU AGPL 3.0. The licenses folder
+has the full license text and where to get each program's source code.
 """
 
 
@@ -77,6 +90,7 @@ def main(argv: list[str] | None = None) -> int:
     files = [(args.exe, "PianoNoteLabeler.exe")]
     files += [(p, "Audiveris/" + p.relative_to(args.audiveris).as_posix())
               for p in sorted(args.audiveris.rglob("*")) if p.is_file()]
+    files += [(ROOT / "LICENSE", "LICENSE.txt")]
     files += [(p, "licenses/" + p.name) for p in sorted((ROOT / "licenses").iterdir()) if p.is_file()]
 
     args.out.parent.mkdir(parents=True, exist_ok=True)

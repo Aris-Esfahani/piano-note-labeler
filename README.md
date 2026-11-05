@@ -17,6 +17,12 @@ right on top of its own sharp or flat.
 - Chords are labelled as a stack, top note on top.
 - Runs on your own computer. Nothing is uploaded.
 
+> **Built on [Audiveris](https://github.com/Audiveris/audiveris).** Reading the notes
+> off the page (optical music recognition) is done entirely by Audiveris, the free,
+> open-source project by Hervé Bitteur and contributors. This app adds the
+> beginner-friendly part on top: working out each note's letter name and writing it
+> neatly onto your original sheet music. Many thanks to the Audiveris team.
+
 ## Install (Windows): one download, nothing to install
 
 1. From this project's [Releases](../../releases) page, download
@@ -138,9 +144,23 @@ attaches them to a Release (see `.github/workflows/build.yml`).
 
 ## Credits
 
-- [Audiveris](https://github.com/Audiveris/audiveris): optical music recognition (AGPL-3.0)
-- [PyMuPDF](https://github.com/pymupdf/PyMuPDF): reading and writing PDFs (AGPL-3.0)
-- Sample score: J. S. Bach, Menuet in G, BWV Anh. 114, typeset by Allen Garvin for the
-  Mutopia Project, public domain.
+- **[Audiveris](https://github.com/Audiveris/audiveris)** by Hervé Bitteur and
+  contributors: the optical music recognition engine that reads every note, clef and
+  key signature. GNU AGPL 3.0. The Windows zip includes Audiveris 5.11.0 unchanged; its
+  source code is on its GitHub page.
+- **[PyMuPDF](https://github.com/pymupdf/PyMuPDF)** / MuPDF by Artifex: reading and
+  writing the PDFs. GNU AGPL 3.0.
+- **Python** and **Tkinter** (the app window).
+- Sample score in the tests: J. S. Bach, Menuet in G, BWV Anh. 114, typeset by Allen
+  Garvin for the [Mutopia Project](https://www.mutopiaproject.org), public domain.
 
-See [licenses/THIRD-PARTY-NOTICES.md](licenses/THIRD-PARTY-NOTICES.md) for details.
+Full details: [licenses/THIRD-PARTY-NOTICES.md](licenses/THIRD-PARTY-NOTICES.md).
+
+## License
+
+Copyright (C) 2026 Aris Esfahani.
+
+Piano Note Labeler is free software: you can share and change it under the terms of the
+[GNU Affero General Public License](LICENSE), version 3 or (at your option) any later
+version. It comes with **no warranty**. It uses the same license as Audiveris and
+PyMuPDF, which it is built on.
